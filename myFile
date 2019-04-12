@@ -1,1 +1,21 @@
 FileStream ms=new FileStream(Path,FileStreamMode.Open,FileStreamAccess.Read)
+byte[] tagHeader=new byte[10];
+ArrayList tagData=new ArrayList();
+
+ms.Seek(0,SeekOrigin.Begin);
+ms.Read(tagHeader,0,10);
+int size = (buffer[6] & 0x7F) * 0x200000 + (buffer[7] & 0x7F) * 0x4000 + (buffer[8] & 0x7F) * 0x80 + (buffer[9] & 0x7F);
+tagData.Capacity=size;
+ms.Seek(10,SeekOrigin.Current);
+ms.Read(tagData,0,size);
+
+int dataindex=10;
+int nextIndex=10;
+string tags;
+while(dataindex!=size)
+{
+  tagName=new string(tagData[nextIndex+0]+tagData[nextIndex+1]+tagData[nextIndex+2]+tagData[nextIndex+3]);
+  tagSize=tagData[nextIndex+4]* 0x1000000 + tagData[nextIndex+5]* 0x10000 + tagData[nextIndex+6]* 0x100  + tagData[nextIndex+7];
+  nextInde+=(10+tagSize);
+  
+}
