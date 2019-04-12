@@ -1,0 +1,1 @@
+FileStream ms=new FileStream(Path,FileStreamMode.Open,FileStreamAccess.Read)
