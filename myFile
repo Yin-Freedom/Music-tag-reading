@@ -1,4 +1,27 @@
-public ArrayList GetTags(string path)
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.IO;
+using System.Drawing;
+using System.Windows;
+using System.Collections;
+using static System.Console;
+
+namespace mp3_data
+{
+    /// <summary>
+    /// MP3搜索
+    /// </summary>
+    public class MusicSearch
+    {
+        private string musicName;
+        private string musicLyric;
+        private string musicPicture;
+        
+
+        public ArrayList GetTags(string path)
         {
             FileStream ms = new FileStream(path, FileMode.Open, FileAccess.Read);
             byte[] tagHeader = new byte[10];
@@ -9,15 +32,17 @@ public ArrayList GetTags(string path)
             int size = (tagHeader[6] & 0x7F) * 0x200000 + (tagHeader[7] & 0x7F) * 0x4000 + (tagHeader[8] & 0x7F) * 0x80 + (tagHeader[9] & 0x7F);
             WriteLine(size);
             byte[] tagData = new byte[size];
+            //读取 ID3V2 数据
             ms.Seek(10, SeekOrigin.Begin);
             //将 ID3V2 数据读到tagData字节数组中
             ms.Read(tagData, 0, size);
-
+            
             int dataIndex = 0;
             int nextIndex = 0;
             char[] frameTag = new char[4];
-            char[] frameData;
+
             // 标签帧组成：frameHeader[4] + frameSize[4] + [2]
+            // 循环读取 ID3V2中的标签内容
             while (dataIndex < size)
             {
                 for(int i=0; i < 4; i++)
@@ -25,14 +50,44 @@ public ArrayList GetTags(string path)
                     frameTag[i] = Convert.ToChar (tagData[nextIndex+i]);
                 }
                 string frameName = new string(frameTag);
+
+                // 解码帧数据中的内容
                 int frameSize = tagData[nextIndex + 4] * 0x1000000 + tagData[nextIndex + 5] * 0x10000 + tagData[nextIndex + 6] * 0x100 + tagData[nextIndex + 7];
-                WriteLine(frameSize);
-                frameData = new char[frameSize];
-                for(int i = 0; i < frameSize; i++)
+
+                if (frameName.CompareTo("APIC") == 0)
                 {
-                    frameData[i] = Convert.ToChar(tagData[nextIndex + 10 + i]);
+                    MessageBox.Show("有图片");
+                    int i = 0;
+                    while (true)
+                    {
+                        // 图片以 255 216开始，255 217结束
+                        if ((tagData[nextIndex + 10 + i] == 255) && (tagData[nextIndex + 10 + i + 1] == 216))
+                        {
+                            break;
+                        }
+                        i++;
+                    }
+                    WriteLine(i); // 应该等于14
+                    byte[] image = new byte[frameSize - i];
+
+                    WriteLine(frameSize - i);
+                    WriteLine(nextIndex + 10 + i);
+                    // 当前索引为 10（标签头） 10（帧头） i（255 216位置）
+                    ms.Seek(nextIndex + 10 + 10 + i, SeekOrigin.Begin);
+                    // 读取图片需要将开头 FF D8 和结尾 FF D9 读进来
+                    ms.Read(image, 0, image.Length);
+                    MemoryStream m = new MemoryStream(image);
+                    Image img = Image.FromStream(m);
+                    FileStream save = new FileStream(@"H:\C#\other\workPlace others\音乐播放器\mp3 data\2.jpeg", FileMode.Create);
+                    img.Save(save, System.Drawing.Imaging.ImageFormat.Jpeg);
+
+                    MessageBox.Show(@"图片保存成功，在H:\C#\other\workPlace others\音乐播放器\mp3 data\2.jpeg");
+                    nextIndex += (10 + frameSize);
+                    dataIndex += (10 + frameSize);
+                    break;
                 }
-                string context = new string(frameData);
+                // 将数据、解码索引、[10]编码模式、解码大小 传给方法
+                string context = GetFrameInfoByEcoding( tagData, nextIndex+11, tagData[nextIndex + 10], frameSize - 1);
                 string tag =frameName + context;
                 ID3V2.Add(tag);
                 nextIndex += (10 + frameSize);
@@ -44,3 +99,26 @@ public ArrayList GetTags(string path)
             }
             return ID3V2;
         }
+        // 帧数据 解码
+        public static string GetFrameInfoByEcoding(byte[] b, int dataIndex, byte conde, int length)
+        {
+            string str = "";
+            switch (conde)
+            {
+                case 0:
+                    str = Encoding.GetEncoding("ISO-8859-1").GetString(b, dataIndex, length);
+                    break;
+                case 1:
+                    str = Encoding.GetEncoding("UTF-16LE").GetString(b, dataIndex, length);
+                    break;
+                case 2:
+                    str = Encoding.GetEncoding("UTF-16BE").GetString(b, dataIndex, length);
+                    break;
+                case 3:
+                    str = Encoding.UTF8.GetString(b, dataIndex, length);
+                    break;
+            }
+            return str;
+        }
+    }
+}
