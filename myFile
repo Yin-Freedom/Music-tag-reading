@@ -1,32 +1,46 @@
-public string GetTags()
-{
-  FileStream ms=new FileStream(Path,FileStreamMode.Open,FileStreamAccess.Read)
-  byte[] tagHeader=new byte[10];
-  ArrayList tagData=new ArrayList();
+public ArrayList GetTags(string path)
+        {
+            FileStream ms = new FileStream(path, FileMode.Open, FileAccess.Read);
+            byte[] tagHeader = new byte[10];
+            ArrayList ID3V2 = new ArrayList();
 
-  ms.Seek(0,SeekOrigin.Begin);
-  ms.Read(tagHeader,0,10);
-  int size = (buffer[6] & 0x7F) * 0x200000 + (buffer[7] & 0x7F) * 0x4000 + (buffer[8] & 0x7F) * 0x80 + (buffer[9] & 0x7F);
-  tagData.Capacity=size;
-  ms.Seek(10,SeekOrigin.Current);
-  ms.Read(tagData,0,size);
+            ms.Seek(0, SeekOrigin.Begin);
+            ms.Read(tagHeader, 0, 10);
+            int size = (tagHeader[6] & 0x7F) * 0x200000 + (tagHeader[7] & 0x7F) * 0x4000 + (tagHeader[8] & 0x7F) * 0x80 + (tagHeader[9] & 0x7F);
+            WriteLine(size);
+            byte[] tagData = new byte[size];
+            ms.Seek(10, SeekOrigin.Begin);
+            //将 ID3V2 数据读到tagData字节数组中
+            ms.Read(tagData, 0, size);
 
-  int dataindex=10;
-  int nextIndex=10;
-  ArrayList tags=new ArrayList();
-  while(dataIndex!=size)
-  {
-    tagName=new string(tagData[nextIndex+0:nextIndex+3]);
-    tagSize=tagData[nextIndex+4]* 0x1000000 + tagData[nextIndex+5]* 0x10000 + tagData[nextIndex+6]* 0x100  + tagData[nextIndex+7];
-    string context=new string(tagData[nextIndex+9:nextIndex+tagSize]);
-    tags=tagName+context;
-    tags.Add(tags);
-    nextInde+=tagSize;
-    dataIndex+=tagSize;
-  }
-  foreach(string tagItem in tags)
-  {
-    WriteLine(tagItem);
-  }
-  return tags;
-}
+            int dataIndex = 0;
+            int nextIndex = 0;
+            char[] frameTag = new char[4];
+            char[] frameData;
+            // 标签帧组成：frameHeader[4] + frameSize[4] + [2]
+            while (dataIndex < size)
+            {
+                for(int i=0; i < 4; i++)
+                {
+                    frameTag[i] = Convert.ToChar (tagData[nextIndex+i]);
+                }
+                string frameName = new string(frameTag);
+                int frameSize = tagData[nextIndex + 4] * 0x1000000 + tagData[nextIndex + 5] * 0x10000 + tagData[nextIndex + 6] * 0x100 + tagData[nextIndex + 7];
+                WriteLine(frameSize);
+                frameData = new char[frameSize];
+                for(int i = 0; i < frameSize; i++)
+                {
+                    frameData[i] = Convert.ToChar(tagData[nextIndex + 10 + i]);
+                }
+                string context = new string(frameData);
+                string tag =frameName + context;
+                ID3V2.Add(tag);
+                nextIndex += (10 + frameSize);
+                dataIndex += (10 + frameSize);
+            }
+            foreach (string tagItem in ID3V2)
+            {
+                WriteLine(tagItem);
+            }
+            return ID3V2;
+        }
